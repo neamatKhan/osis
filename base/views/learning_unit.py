@@ -23,14 +23,16 @@
 #    see http://www.gnu.org/licenses/.
 #
 ##############################################################################
+
+from django.contrib import messages
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.core.urlresolvers import reverse
 from django.contrib.auth.decorators import login_required, permission_required
 from django.http import HttpResponseRedirect
 from django.shortcuts import redirect
-from django.views.decorators.http import require_http_methods, require_POST
-
+from django.views.decorators.http import require_http_methods
+from django.utils.translation import ugettext_lazy as _
 from base import models as mdl
 from base.business import learning_unit_year_volumes
 from base.business import learning_unit_year_with_context
@@ -54,15 +56,11 @@ from cms.models import text_label
 from reference.models import language
 from . import layout
 from django.http import JsonResponse
-from django.contrib import messages
-from django.utils.translation import ugettext_lazy as _
 
 
 CMS_LABEL_SPECIFICATIONS = ['themes_discussed', 'skills_to_be_acquired', 'prerequisite']
 CMS_LABEL_PEDAGOGY = ['resume', 'bibliography', 'teaching_methods', 'evaluation_methods',
                       'other_informations', 'online_resources']
-
-LEARNING_UNIT_CREATION_SPAN_YEARS = 6
 
 
 @login_required
@@ -309,8 +307,6 @@ def learning_class_year_edit(request, learning_unit_year_id):
     return layout.render(request, "learning_unit/class_edit.html", context)
 
 
-@login_required
-@permission_required('base.can_access_learningunit', raise_exception=True)
 def learning_unit_create(request, academic_year):
     form = CreateLearningUnitYearForm(initial={'academic_year': academic_year,
                                                'subtype': FULL,
@@ -319,38 +315,38 @@ def learning_unit_create(request, academic_year):
     return layout.render(request, "learning_unit/learning_unit_form.html", {'form': form})
 
 
-@login_required
-@permission_required('base.can_access_learningunit', raise_exception=True)
-@require_POST
 def learning_unit_year_add(request):
-    form = CreateLearningUnitYearForm(request.POST)
-    if form.is_valid():
-        data = form.cleaned_data
-        starting_academic_year = mdl.academic_year.starting_academic_year()
-        academic_year = data['academic_year']
-        year = academic_year.year
-        status = data['status'] == 'on'
-        additional_entity_version_1 = None
-        additional_entity_version_2 = None
-        allocation_entity_version = None
-        requirement_entity_version = data['requirement_entity']
-        if data.get('allocation_entity'):
-            allocation_entity_version = data['allocation_entity']
-        if data.get('additional_entity_1'):
-            additional_entity_version_1 = data['additional_entity_1']
-        if data.get('additional_entity_2'):
-            additional_entity_version_2 = data['additional_entity_2']
-        new_learning_container = LearningContainer.objects.create(start_year=year)
-        new_learning_unit = create_learning_unit(data, new_learning_container, year)
-        while year < starting_academic_year.year + LEARNING_UNIT_CREATION_SPAN_YEARS:
-            academic_year = mdl.academic_year.find_academic_year_by_year(year)
-            create_learning_unit_structure(additional_entity_version_1, additional_entity_version_2,
-                                           allocation_entity_version, data, form, new_learning_container,
-                                           new_learning_unit, requirement_entity_version, status, academic_year)
-            year = year+1
-        return redirect('learning_units')
+    if request.POST:
+        form = CreateLearningUnitYearForm(request.POST)
+        if form.is_valid():
+            data = form.cleaned_data
+            starting_academic_year = mdl.academic_year.starting_academic_year()
+            academic_year = data['academic_year']
+            year = academic_year.year
+            status = data['status'] == 'on'
+            additional_entity_version_1 = None
+            additional_entity_version_2 = None
+            allocation_entity_version = None
+            requirement_entity_version = data['requirement_entity']
+            if data.get('allocation_entity'):
+                allocation_entity_version = data['allocation_entity']
+            if data.get('additional_entity_1'):
+                additional_entity_version_1 = data['additional_entity_1']
+            if data.get('additional_entity_2'):
+                additional_entity_version_2 = data['additional_entity_2']
+            new_learning_container = LearningContainer.objects.create(start_year=year)
+            new_learning_unit = create_learning_unit(data, new_learning_container, year)
+            while year < starting_academic_year.year + 6:
+                academic_year = mdl.academic_year.find_academic_year_by_year(year)
+                create_learning_unit_structure(additional_entity_version_1, additional_entity_version_2,
+                                               allocation_entity_version, data, form, new_learning_container,
+                                               new_learning_unit, requirement_entity_version, status, academic_year)
+                year = year+1
+            return redirect('learning_units')
+        else:
+            return layout.render(request, "learning_unit/learning_unit_form.html", {'form': form})
     else:
-        return layout.render(request, "learning_unit/learning_unit_form.html", {'form': form})
+        return redirect('learning_unit_create')
 
 
 @login_required
@@ -391,7 +387,6 @@ def learning_units_activity(request):
 @permission_required('base.can_access_learningunit', raise_exception=True)
 def learning_units_service_course(request):
     return _learning_units_search(request, 2)
-
 
 def _learning_units_search(request, search_type):
     if request.GET.get('academic_year_id'):
