@@ -36,7 +36,8 @@ from base.business.entity_version import SERVICE_COURSE
 from base.business.learning_unit_year_with_context import append_latest_entities
 from base.forms.common import get_clean_data, treat_empty_or_str_none_as_none
 from base.models import entity_version as mdl_entity_version
-from base.models.campus import find_main_campuses
+from base.forms.bootstrap import BootstrapForm
+from base.models.campus import find_administration_campuses
 from base.models.entity_version import find_main_entities_version
 from base.models.enums import entity_container_year_link_type
 from base.models.enums.learning_container_year_types import LEARNING_CONTAINER_YEAR_TYPES, INTERNSHIP
@@ -63,7 +64,8 @@ class LearningUnitYearForm(forms.Form):
         data_cleaned = treat_empty_or_str_none_as_none(data_cleaned)
         if data_cleaned and len(data_cleaned) < MIN_ACRONYM_LENGTH:
             raise ValidationError(_('LU_WARNING_INVALID_ACRONYM'))
-        elif data_cleaned and len(data_cleaned) >= MIN_ACRONYM_LENGTH and check_if_acronym_regex_is_valid(data_cleaned) is None:
+        elif data_cleaned and len(data_cleaned) >= MIN_ACRONYM_LENGTH and check_if_acronym_regex_is_valid(
+                data_cleaned) is None:
             raise ValidationError(_('LU_ERRORS_INVALID_REGEX_SYNTAX'))
         return data_cleaned
 
@@ -183,45 +185,48 @@ class EntitiesVersionChoiceField(forms.ModelChoiceField):
         return obj.acronym
 
 
-class CreateLearningUnitYearForm(forms.ModelForm):
+class CreateLearningUnitYearForm(BootstrapForm):
+    acronym = forms.CharField(widget=forms.TextInput(attrs={'maxlength': "15", 'required': True}))
+    academic_year = forms.ModelChoiceField(queryset=mdl.academic_year.find_academic_years(), required=True,
+                                           empty_label=_('all_label'))
+    status = forms.CharField(required=False, widget=forms.CheckboxInput())
+    internship_subtype = forms.ChoiceField(choices=((None, "---------"),) +
+                                                   mdl.enums.internship_subtypes.INTERNSHIP_SUBTYPES,
+                                           required=False)
+    credits = forms.CharField(widget=forms.TextInput(attrs={'required': True}))
+    title = forms.CharField(widget=forms.TextInput(attrs={'required': True}))
+    title_english = forms.CharField(required=False, widget=forms.TextInput())
+    session = forms.ChoiceField(choices=((None, "---------"),) +
+                                        mdl.enums.learning_unit_year_session.LEARNING_UNIT_YEAR_SESSION,
+                                required=False)
+    subtype = forms.CharField(widget=forms.HiddenInput())
+    first_letter = forms.CharField(required=False, widget=forms.TextInput(attrs={'class': 'text-center',
+                                                                                 'maxlength': "1",
+                                                                                 'readonly': 'readonly'}))
     learning_container_year_type = forms.ChoiceField(choices=lazy(create_learning_container_year_type_list, tuple),
-                                                     widget=forms.Select(attrs={'class': 'form-control',
-                                                                                'onchange': 'showDiv(this.value)',
-                                                                                'id': 'learning_container_year_type'}))
-    faculty_remark = forms.CharField(required=False, widget=forms.Textarea(attrs={'class': 'form-control',
-                                                                                  'id': 'faculty_remark',
-                                                                                  'rows': 2}))
-    other_remark = forms.CharField(required=False, widget=forms.Textarea(attrs={'class': 'form-control',
-                                                                                'id': 'other_remark',
-                                                                                'rows': 2}))
-    periodicity = forms.CharField(widget=forms.Select(attrs={'class': 'form-control',
-                                                             'id': 'periodicity'},
-                                                      choices=PERIODICITY_TYPES))
-    campus = forms.ModelChoiceField(find_main_campuses(), widget=forms.Select(attrs={'class': 'form-control',
-                                                                                     'id': 'campus'}))
+                                                     widget=forms.Select(
+                                                         attrs={'onchange': 'showInternshipSubtype(this.value)'}))
+
+    faculty_remark = forms.CharField(required=False, widget=forms.Textarea(attrs={'rows': 2}))
+    other_remark = forms.CharField(required=False, widget=forms.Textarea(attrs={'rows': 2}))
+    periodicity = forms.CharField(widget=forms.Select(choices=PERIODICITY_TYPES))
+    campus = forms.ModelChoiceField(queryset=find_administration_campuses(),
+                                    widget=forms.Select(attrs={'onchange': 'setFirstLetter()'}))
     requirement_entity = EntitiesVersionChoiceField(find_main_entities_version(),
-                                                widget=forms.Select(attrs={'class': 'form-control',
-                                                                           'id': 'requirement_entity',
-                                                                           'onchange': 'showAdditionalEntity1(this.value)'}))
+                                                    widget=forms.Select(attrs={
+                                                        'onchange': 'showAdditionalEntity(this.value, "id_additional_entity_1")'}))
+
     allocation_entity = EntitiesVersionChoiceField(find_main_entities_version(),
-                                               required=False,
-                                               widget=forms.Select(attrs={'class': 'form-control',
-                                                                          'id': 'allocation_entity'}))
+                                                   required=False)
     additional_entity_1 = EntitiesVersionChoiceField(find_main_entities_version(),
-                                                 required=False,
-                                                 widget=forms.Select(attrs={'class': 'form-control',
-                                                                            'id': 'allocation_entity_1',
-                                                                            'disabled': 'disabled',
-                                                                            'onchange': 'showAdditionalEntity2(this.value)'})
-                                                 )
+                                                     required=False,
+                                                     widget=forms.Select(attrs={
+                                                         'onchange': 'showAdditionalEntity(this.value, "id_additional_entity_2")',
+                                                         'disable': 'disable'}))
     additional_entity_2 = EntitiesVersionChoiceField(find_main_entities_version(),
-                                                 required=False,
-                                                 widget=forms.Select(attrs={'class': 'form-control',
-                                                                            'id': 'allocation_entity_2',
-                                                                            'disabled': 'disabled'}))
-    language = forms.ModelChoiceField(find_all_languages(), empty_label=None,
-                                      widget=forms.Select(attrs={'class': 'form-control',
-                                                                 'id': 'language'}))
+                                                     required=False,
+                                                     widget=forms.Select(attrs={'disable': 'disable'}))
+    language = forms.ModelChoiceField(find_all_languages(), empty_label=None)
 
     acronym_regex = "^[LMNPWX][A-Z]{2,4}\d{4}$"
 
@@ -258,19 +263,23 @@ class CreateLearningUnitYearForm(forms.ModelForm):
                    'subtype': forms.HiddenInput()
                    }
 
+    def clean_acronym(self):
+        data_cleaned = self.data.get('first_letter') + self.cleaned_data.get('acronym')
+        if data_cleaned:
+            return data_cleaned.upper()
+
     def is_valid(self):
-        if not super(CreateLearningUnitYearForm, self).is_valid():
+        if not super().is_valid():
             return False
         try:
             academic_year = mdl.academic_year.find_academic_year_by_id(self.data.get('academic_year'))
         except ObjectDoesNotExist:
             return False
-        learning_unit_years = mdl.learning_unit_year.find_gte_year_acronym(academic_year, self.data.get('acronym'))
+        learning_unit_years = mdl.learning_unit_year.find_gte_year_acronym(academic_year, self.data['acronym'])
         learning_unit_years_list = [learning_unit_year.acronym.lower() for learning_unit_year in learning_unit_years]
-
-        if self.cleaned_data['acronym'].lower() in learning_unit_years_list:
+        if self.data['acronym'] in learning_unit_years_list:
             self.add_error('acronym', _('existing_acronym'))
-        elif not re.match(self.acronym_regex, self.cleaned_data['acronym'].upper()):
+        elif not re.match(self.acronym_regex, self.cleaned_data['acronym']):
             self.add_error('acronym', _('invalid_acronym'))
         elif self.cleaned_data['learning_container_year_type'] == INTERNSHIP \
                 and not (self.cleaned_data['internship_subtype']):

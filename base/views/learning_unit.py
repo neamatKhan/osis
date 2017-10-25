@@ -29,8 +29,8 @@ from django.core.urlresolvers import reverse
 from django.contrib.auth.decorators import login_required, permission_required
 from django.http import HttpResponseRedirect
 from django.shortcuts import redirect
+from django.utils.translation import ugettext_lazy as _
 from django.views.decorators.http import require_http_methods, require_POST
-
 from base import models as mdl
 from base.business import learning_unit_year_volumes
 from base.business import learning_unit_year_with_context
@@ -55,7 +55,6 @@ from reference.models import language
 from . import layout
 from django.http import JsonResponse
 from django.contrib import messages
-from django.utils.translation import ugettext_lazy as _
 
 
 CMS_LABEL_SPECIFICATIONS = ['themes_discussed', 'skills_to_be_acquired', 'prerequisite']
@@ -330,17 +329,12 @@ def learning_unit_year_add(request):
         academic_year = data['academic_year']
         year = academic_year.year
         status = data['status'] == 'on'
-        additional_entity_version_1 = None
-        additional_entity_version_2 = None
-        allocation_entity_version = None
-        requirement_entity_version = data['requirement_entity']
-        if data.get('allocation_entity'):
-            allocation_entity_version = data['allocation_entity']
-        if data.get('additional_entity_1'):
-            additional_entity_version_1 = data['additional_entity_1']
-        if data.get('additional_entity_2'):
-            additional_entity_version_2 = data['additional_entity_2']
+        requirement_entity_version = data.get('requirement_entity')
+        allocation_entity_version = data.get('allocation_entity')
+        additional_entity_version_1 = data.get('additional_entity_1')
+        additional_entity_version_2 = data.get('additional_entity_2')
         new_learning_container = LearningContainer.objects.create(start_year=year)
+
         new_learning_unit = create_learning_unit(data, new_learning_container, year)
         while year < starting_academic_year.year + LEARNING_UNIT_CREATION_SPAN_YEARS:
             academic_year = mdl.academic_year.find_academic_year_by_year(year)
@@ -354,6 +348,7 @@ def learning_unit_year_add(request):
 
 
 @login_required
+@permission_required('base.can_access_learningunit', raise_exception=True)
 def check_acronym(request):
     acronym = request.GET['acronym']
     year_id = request.GET['year_id']
@@ -383,6 +378,14 @@ def check_acronym(request):
 
 @login_required
 @permission_required('base.can_access_learningunit', raise_exception=True)
+def check_code(request):
+    campus_id = request.GET['campus']
+    campus = mdl.campus.find_by_id(campus_id)
+    return JsonResponse({'code': campus.code}, safe=False)
+
+
+@login_required
+@permission_required('base.can_access_learningunit', raise_exception=True)
 def learning_units_activity(request):
     return _learning_units_search(request, 1)
 
@@ -394,6 +397,7 @@ def learning_units_service_course(request):
 
 
 def _learning_units_search(request, search_type):
+
     if request.GET.get('academic_year_id'):
         form = LearningUnitYearForm(request.GET)
     else:
