@@ -57,6 +57,7 @@ urlpatterns = [
     url(r'^api/v1/', include([
         url(r'^entities/$', entity.post_entities, name='post_entities'),
         url(r'^attribution/recompute_portal$', attribution.recompute_portal, name='recompute_attribution_portal'),
+        url(r'^learning_unit_years/$', learning_unit.get_learning_unit_years, name='get_learning_unit_years'),
     ])),
 
     url(r'^catalog/$', common.catalog, name='catalog'),

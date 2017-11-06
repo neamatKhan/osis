@@ -43,6 +43,7 @@ from base.forms.common import TooManyResultsException
 from base.models.enums import learning_container_year_types
 from base.models.enums.learning_unit_year_subtypes import FULL
 from base.models.learning_container import LearningContainer
+from base.models.learning_unit_year import LearningUnitYear
 from base.forms.learning_units import LearningUnitYearForm, CreateLearningUnitYearForm, EMPTY_FIELD
 from base.forms.learning_unit_specifications import LearningUnitSpecificationsForm, LearningUnitSpecificationsEditForm
 from base.forms.learning_unit_pedagogy import LearningUnitPedagogyForm, LearningUnitPedagogyEditForm
@@ -50,12 +51,17 @@ from base.forms.learning_unit_component import LearningUnitComponentEditForm
 from base.forms.learning_class import LearningClassEditForm
 from base.models.enums import learning_unit_year_subtypes
 from base.forms.learning_units import MAX_RECORDS
+from base.serializers import LearningUnitYearSerializer
 from cms.models import text_label
 from reference.models import language
 from . import layout
 from django.http import JsonResponse
 from django.contrib import messages
 from django.utils.translation import ugettext_lazy as _
+from rest_framework.decorators import api_view, renderer_classes
+from rest_framework.response import Response
+from rest_framework import status
+from rest_framework_xml.renderers import XMLRenderer
 
 
 CMS_LABEL_SPECIFICATIONS = ['themes_discussed', 'skills_to_be_acquired', 'prerequisite']
@@ -398,6 +404,17 @@ def learning_units_activity(request):
 @permission_required('base.can_access_learningunit', raise_exception=True)
 def learning_units_service_course(request):
     return _learning_units_search(request, SERVICE_COURSES_SEARCH)
+
+
+@api_view(['GET'])
+@renderer_classes((XMLRenderer,))
+def get_learning_unit_years(request):
+    learning_unit_years = LearningUnitYear.objects.filter(
+        acronym__icontains=request.GET['acronym'],
+        academic_year__year=request.GET['anac']
+    ).order_by('acronym')
+    serializer = LearningUnitYearSerializer(learning_unit_years, many=True)
+    return Response(serializer.data)
 
 
 def _learning_units_search(request, search_type):

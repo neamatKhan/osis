@@ -24,8 +24,10 @@
 #
 ##############################################################################
 from rest_framework import serializers
+from base.models.learning_container_year import LearningContainerYear
 from base.models.entity import Entity
 from base.models.entity_version import EntityVersion
+from base.models.learning_unit_year import LearningUnitYear
 
 
 class EntityVersionSerializer(serializers.ModelSerializer):
@@ -51,3 +53,21 @@ class EntitySerializer(serializers.ModelSerializer):
             EntityVersion.objects.create(entity=entity, **version_data)
 
         return entity
+
+
+class LearningContainerYearField(serializers.RelatedField):
+    class Meta:
+        model = LearningContainerYear
+        fields = ('container_type',)
+
+    def to_representation(self, value):
+        return "Type : {}".format(value.container_type)
+
+
+class LearningUnitYearSerializer(serializers.ModelSerializer):
+    academic_year = serializers.SlugRelatedField(many=False, read_only=True, slug_field='name')
+    learning_container_year = LearningContainerYearField(many=False, read_only=True)
+
+    class Meta:
+        model = LearningUnitYear
+        fields = ('academic_year', 'acronym', 'title', 'learning_container_year', 'subtype', 'quadrimester')

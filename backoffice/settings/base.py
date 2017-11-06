@@ -292,12 +292,13 @@ REST_FRAMEWORK = {
         'rest_framework.authentication.TokenAuthentication',
     ),
     'DEFAULT_PERMISSION_CLASSES': (
-        'rest_framework.permissions.IsAuthenticated',
+        'rest_framework.permissions.AllowAny',
+        # 'rest_framework.permissions.IsAuthenticated',
     ),
     'TEST_REQUEST_DEFAULT_FORMAT': 'json'
 }
 
-#ESB Configuration
+# ESB Configuration
 ESB_AUTHORIZATION = os.environ.get('ESB_AUTHORIZATION')
 ESB_STUDENT_API = os.environ.get('ESB_STUDENT_API')
 
