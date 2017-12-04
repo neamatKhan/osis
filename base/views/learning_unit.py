@@ -406,8 +406,8 @@ def learning_units_service_course(request):
 @renderer_classes((XMLRenderer,))
 def get_learning_unit_years(request):
     learning_unit_years = LearningUnitYear.objects.filter(
-        acronym__icontains=request.GET['acronym'],
-        academic_year__year=request.GET['anac']
+        acronym__icontains=request.GET.get('acronym'),
+        academic_year__year=request.GET.get('anac')
     ).order_by('acronym')
     serializer = LearningUnitYearSerializer(learning_unit_years, many=True)
     return Response(serializer.data)
